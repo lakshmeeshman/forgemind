@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -169,38 +170,49 @@ export default function DashboardPage() {
             </div>
 
             <div className="divide-y divide-white/[0.06]">
-              {recentSearches.map((search) => (
-                <div
-                  key={search.ticker}
-                  className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 hover:bg-white/[0.01] transition-colors rounded-lg px-2 -mx-2 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/[0.02] border border-white/[0.08] flex items-center justify-center">
-                      <Building2 className="w-4 h-4 text-slate-400" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
-                          {search.name}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1 rounded">
-                          {search.ticker}
-                        </span>
+              {recentSearches.map((search) => {
+                const slug =
+                  search.ticker.toLowerCase() === "nvda"
+                    ? "nvidia"
+                    : search.ticker.toLowerCase() === "tsla"
+                    ? "tesla"
+                    : search.ticker.toLowerCase() === "aapl"
+                    ? "apple"
+                    : search.ticker.toLowerCase();
+                return (
+                  <Link
+                    key={search.ticker}
+                    href={`/company/${slug}`}
+                    className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 hover:bg-white/[0.01] transition-colors rounded-lg px-2 -mx-2 group block"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/[0.02] border border-white/[0.08] flex items-center justify-center">
+                        <Building2 className="w-4 h-4 text-slate-400" />
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">{search.type}</span>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
+                            {search.name}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1 rounded">
+                            {search.ticker}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">{search.type}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
-                      {search.time}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] font-semibold text-emerald-400">{search.status}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+                        {search.time}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-[10px] font-semibold text-emerald-400">{search.status}</span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </motion.div>
 

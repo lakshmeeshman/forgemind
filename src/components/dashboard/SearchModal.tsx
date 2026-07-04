@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, History, ArrowRight, Building2, FileText, Layers, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -13,6 +15,14 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
+  const router = useRouter();
+
+  const companies = [
+    { name: "NVIDIA Corporation", ticker: "NVDA", slug: "nvidia" },
+    { name: "Tesla, Inc.", ticker: "TSLA", slug: "tesla" },
+    { name: "Microsoft Corporation", ticker: "MSFT", slug: "microsoft" },
+    { name: "Apple Inc.", ticker: "AAPL", slug: "apple" },
+  ];
 
   const recentSearches = [
     { text: "NVIDIA SWOT analysis", type: "company" },
@@ -25,6 +35,42 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     { name: "Executive Reports", href: "/reports", icon: FileText },
     { name: "Active Workspace", href: "/workspace", icon: Layers },
   ];
+
+  const filteredCompanies = query
+    ? companies.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query.toLowerCase()) ||
+          c.ticker.toLowerCase().includes(query.toLowerCase())
+      )
+    : [];
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && query.trim()) {
+      e.preventDefault();
+      const matched = companies.find(
+        (c) =>
+          c.name.toLowerCase() === query.trim().toLowerCase() ||
+          c.ticker.toLowerCase() === query.trim().toLowerCase() ||
+          c.slug === query.trim().toLowerCase()
+      );
+      const slug = matched ? matched.slug : query.trim().toLowerCase().replace(/\s+/g, "-");
+      router.push(`/company/${slug}`);
+      onClose();
+    }
+  };
+
+  const handleRecentSearchClick = (text: string) => {
+    let slug = "nvidia";
+    const lower = text.toLowerCase();
+    if (lower.includes("nvidia")) slug = "nvidia";
+    else if (lower.includes("tesla")) slug = "tesla";
+    else if (lower.includes("apple")) slug = "apple";
+    else if (lower.includes("microsoft")) slug = "microsoft";
+    else slug = lower.replace(/\s+/g, "-");
+
+    router.push(`/company/${slug}`);
+    onClose();
+  };
 
   // Auto-focus input on open
   useEffect(() => {
@@ -41,13 +87,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   // Escape key listener to close
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDownEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     if (isOpen) {
-      window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("keydown", handleKeyDownEsc);
     }
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDownEsc);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -82,6 +128,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               placeholder="Search companies, SWOT, intelligence profiles..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent border-0 outline-none text-slate-100 placeholder-slate-500 text-sm"
             />
             <button
@@ -94,6 +141,42 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
           {/* Search Content */}
           <div className="p-4 space-y-5 max-h-[60vh] overflow-y-auto">
+            {/* Suggested / Matching Profiles */}
+            {query && (
+              <div>
+                <h4 className="text-[10px] font-bold tracking-wider text-brand-accent uppercase mb-2">
+                  Matching Profiles
+                </h4>
+                {filteredCompanies.length > 0 ? (
+                  <div className="space-y-1">
+                    {filteredCompanies.map((c) => (
+                      <button
+                        key={c.slug}
+                        onClick={() => {
+                          router.push(`/company/${c.slug}`);
+                          onClose();
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-white/[0.04] bg-white/[0.01] hover:bg-white/[0.04] text-slate-300 hover:text-white text-xs font-semibold text-left transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Building2 className="w-4 h-4 text-brand-accent shrink-0" />
+                          <span>{c.name}</span>
+                          <span className="text-[9px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase">
+                            {c.ticker}
+                          </span>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 p-2 border border-white/[0.04] bg-white/[0.01] rounded-lg">
+                    No matching profiles. Press <kbd className="border border-white/10 bg-white/5 px-1 rounded mx-0.5">Enter</kbd> to launch raw synthesis for <span className="text-slate-300 font-semibold">&quot;{query}&quot;</span>.
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Quick Navigation Links */}
             <div>
               <h4 className="text-[10px] font-bold tracking-wider text-slate-500 uppercase mb-2">
@@ -103,7 +186,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 {quickNav.map((nav) => {
                   const Icon = nav.icon;
                   return (
-                    <a
+                    <Link
                       key={nav.name}
                       href={nav.href}
                       onClick={onClose}
@@ -113,7 +196,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       <span className="text-xs text-slate-300 font-medium group-hover:text-slate-100">
                         {nav.name}
                       </span>
-                    </a>
+                    </Link>
                   );
                 })}
               </div>
@@ -131,10 +214,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 {recentSearches.map((search) => (
                   <button
                     key={search.text}
-                    onClick={() => {
-                      setQuery(search.text);
-                      inputRef.current?.focus();
-                    }}
+                    onClick={() => handleRecentSearchClick(search.text)}
                     className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/[0.03] text-slate-300 hover:text-white text-xs font-medium text-left transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-2">

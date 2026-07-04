@@ -1,16 +1,59 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Building2, Search, Filter, Sparkles, Plus, Compass } from "lucide-react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { Building2, Search, Filter, Sparkles, Plus, Compass, MapPin, ArrowRight } from "lucide-react";
 import EmptyState from "@/components/dashboard/EmptyState";
 import { Button } from "@/components/ui/button";
+
+const DEFAULT_PROFILES = [
+  {
+    name: "NVIDIA Corporation",
+    ticker: "NVDA",
+    slug: "nvidia",
+    industry: "Semiconductors & AI Hardware",
+    hq: "Santa Clara, CA",
+    founded: 1993,
+  },
+  {
+    name: "Tesla, Inc.",
+    ticker: "TSLA",
+    slug: "tesla",
+    industry: "Automotive & Clean Energy",
+    hq: "Austin, TX",
+    founded: 2003,
+  },
+  {
+    name: "Microsoft Corporation",
+    ticker: "MSFT",
+    slug: "microsoft",
+    industry: "Software & Cloud Computing",
+    hq: "Redmond, WA",
+    founded: 1975,
+  },
+  {
+    name: "Apple Inc.",
+    ticker: "AAPL",
+    slug: "apple",
+    industry: "Consumer Electronics & Tech",
+    hq: "Cupertino, CA",
+    founded: 1976,
+  },
+];
 
 export default function CompaniesPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const handleScan = () => {
-    alert("Real-time AI Company Scan will be implemented in Sprint 3 - Company Intelligence.");
+  const filteredProfiles = DEFAULT_PROFILES.filter(
+    (profile) =>
+      profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.industry.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const cleanSlug = (term: string) => {
+    return term.trim().toLowerCase().replace(/\s+/g, "-");
   };
 
   return (
@@ -30,13 +73,22 @@ export default function CompaniesPage() {
             Search, analyze, and track public profiles of corporate entities.
           </p>
         </div>
-        <Button
-          onClick={handleScan}
-          className="bg-brand-primary hover:bg-brand-primary/95 text-white font-medium text-xs h-9 px-4 cursor-pointer inline-flex items-center gap-1.5 shadow-lg shadow-brand-primary/20"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Scan New Company
-        </Button>
+        
+        {searchTerm ? (
+          <Link href={`/company/${cleanSlug(searchTerm)}`}>
+            <Button className="bg-brand-primary hover:bg-brand-primary/95 text-white font-medium text-xs h-9 px-4 cursor-pointer inline-flex items-center gap-1.5 shadow-lg shadow-brand-primary/20">
+              <Plus className="w-3.5 h-3.5" />
+              Scan &quot;{searchTerm}&quot;
+            </Button>
+          </Link>
+        ) : (
+          <Link href="/company/nvidia">
+            <Button className="bg-brand-primary hover:bg-brand-primary/95 text-white font-medium text-xs h-9 px-4 cursor-pointer inline-flex items-center gap-1.5 shadow-lg shadow-brand-primary/20">
+              <Plus className="w-3.5 h-3.5" />
+              Scan New Company
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Search & Filter Bar */}
@@ -72,20 +124,91 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      {/* Main Panel - Empty State */}
-      <div className="border border-white/[0.06] bg-white/[0.01] rounded-xl p-12 min-h-[450px] flex items-center justify-center relative overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-brand-accent/5 rounded-full blur-3xl" />
+      {/* Main Panel */}
+      <div className="border border-white/[0.06] bg-white/[0.01] rounded-xl p-6 min-h-[450px] relative overflow-hidden flex flex-col justify-center">
+        {/* Glow Effects */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-brand-accent/5 rounded-full blur-3xl -z-10" />
         
-        <div className="relative z-10 w-full max-w-md">
-          <EmptyState
-            icon={Building2}
-            title="No analyzed companies yet"
-            description="Start by scanning a company to trigger public data aggregation, news analysis, financial intelligence, and SWOT builder."
-            actionText="Initiate First Scan"
-            onActionClick={handleScan}
-          />
-        </div>
+        <AnimatePresence mode="wait">
+          {filteredProfiles.length > 0 ? (
+            <motion.div
+              key="grid"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full h-full relative z-10"
+            >
+              {filteredProfiles.map((profile) => {
+                const initials = profile.name
+                  .split(" ")
+                  .map((w) => w[0])
+                  .join("")
+                  .substring(0, 2);
+
+                return (
+                  <Link
+                    key={profile.slug}
+                    href={`/company/${profile.slug}`}
+                    className="p-5 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/[0.1] hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative"
+                  >
+                    <div>
+                      {/* Logo and Status Row */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-brand-primary to-brand-accent p-[1px] shadow-sm">
+                          <div className="w-full h-full bg-[#050816] rounded-lg flex items-center justify-center font-bold text-xs text-white">
+                            {initials}
+                          </div>
+                        </div>
+                        <span className="flex items-center gap-1 text-[9px] font-bold text-slate-500 uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                          <span className="w-1 h-1 rounded-full bg-brand-accent animate-ping" />
+                          Ingested
+                        </span>
+                      </div>
+
+                      {/* Header */}
+                      <h3 className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">
+                        {profile.name}
+                      </h3>
+                      <span className="text-[10px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1 rounded inline-block mt-0.5">
+                        {profile.ticker}
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-2 font-medium">{profile.industry}</p>
+                    </div>
+
+                    <div className="border-t border-white/[0.04] pt-3 mt-4 flex items-center justify-between text-[10px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                        {profile.hq}
+                      </span>
+                      <span className="text-brand-accent group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5 font-bold">
+                        Workspace <ArrowRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative z-10 w-full max-w-md mx-auto"
+            >
+              <EmptyState
+                icon={Building2}
+                title="Profile Not Found"
+                description={`No analyzed company matching "${searchTerm}" was found in our indexes. Launch an AI scan to aggregate data for this firm.`}
+                actionText={`Scan ${searchTerm}`}
+                onActionClick={() => {
+                  window.location.href = `/company/${cleanSlug(searchTerm)}`;
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Pro tip card */}
