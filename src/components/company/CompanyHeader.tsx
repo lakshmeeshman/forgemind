@@ -12,6 +12,8 @@ interface CompanyHeaderProps {
   ceo: string;
   founded: string | number;
   marketCap: string;
+  scanState?: "idle" | "scanning" | "completed";
+  onScan?: () => void;
 }
 
 export default function CompanyHeader({
@@ -21,8 +23,12 @@ export default function CompanyHeader({
   ceo,
   founded,
   marketCap,
+  scanState: parentScanState,
+  onScan,
 }: CompanyHeaderProps) {
-  const [scanState, setScanState] = useState<"idle" | "scanning" | "completed">("idle");
+  const [localScanState, setLocalScanState] = useState<"idle" | "scanning" | "completed">("idle");
+
+  const scanState = parentScanState ?? localScanState;
 
   const initials = name
     .split(" ")
@@ -33,11 +39,15 @@ export default function CompanyHeader({
 
   const handleScan = () => {
     if (scanState !== "idle") return;
-    setScanState("scanning");
+    if (onScan) {
+      onScan();
+      return;
+    }
+    setLocalScanState("scanning");
     setTimeout(() => {
-      setScanState("completed");
+      setLocalScanState("completed");
       setTimeout(() => {
-        setScanState("idle");
+        setLocalScanState("idle");
       }, 3000);
     }, 4000);
   };

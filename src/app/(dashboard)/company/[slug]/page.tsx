@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,51 +14,19 @@ import NewsTab from "@/components/company/NewsTab";
 import SentimentTab from "@/components/company/SentimentTab";
 import ForecastTab from "@/components/company/ForecastTab";
 import ExecutiveSummaryTab from "@/components/company/ExecutiveSummaryTab";
-
-const COMPANY_DATA: Record<
-  string,
-  {
-    name: string;
-    industry: string;
-    headquarters: string;
-    ceo: string;
-    founded: string | number;
-    marketCap: string;
-  }
-> = {
-  nvidia: {
-    name: "NVIDIA Corporation",
-    industry: "Semiconductors & AI Hardware",
-    headquarters: "Santa Clara, California",
-    ceo: "Jensen Huang",
-    founded: 1993,
-    marketCap: "$3.12 Trillion",
-  },
-  tesla: {
-    name: "Tesla, Inc.",
-    industry: "Automotive & Clean Energy",
-    headquarters: "Austin, Texas",
-    ceo: "Elon Musk",
-    founded: 2003,
-    marketCap: "$820.5 Billion",
-  },
-  microsoft: {
-    name: "Microsoft Corporation",
-    industry: "Software & Cloud Computing",
-    headquarters: "Redmond, Washington",
-    ceo: "Satya Nadella",
-    founded: 1975,
-    marketCap: "$3.28 Trillion",
-  },
-  apple: {
-    name: "Apple Inc.",
-    industry: "Consumer Electronics & Technology",
-    headquarters: "Cupertino, California",
-    ceo: "Tim Cook",
-    founded: 1976,
-    marketCap: "$3.43 Trillion",
-  },
-};
+import {
+  companyApi,
+  reportApi,
+  Company,
+  CompanyOverview,
+  Product,
+  FinancialStatement,
+  Competitor,
+  NewsArticle,
+  SentimentData,
+  Forecast,
+  ExecutiveSummary
+} from "@/lib/api";
 
 type TabType =
   | "Overview"
@@ -78,13 +46,96 @@ export default function CompanyWorkspacePage() {
   const [activeTab, setActiveTab] = useState<TabType>("Overview");
   const [scanState, setScanState] = useState<"idle" | "scanning" | "completed">("idle");
 
-  const company = COMPANY_DATA[slug] || {
-    name: rawSlug.toUpperCase() + " Corp.",
-    industry: "Technology & Industry Services",
-    headquarters: "New York, NY",
-    ceo: "Executive Officer",
-    founded: 2012,
-    marketCap: "$120.0 Billion",
+  const [company, setCompany] = useState<Company | null>(null);
+  const [overview, setOverview] = useState<CompanyOverview | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
+  const [financials, setFinancials] = useState<FinancialStatement | null>(null);
+  const [competitors, setCompetitors] = useState<Competitor[] | null>(null);
+  const [news, setNews] = useState<NewsArticle[] | null>(null);
+  const [sentiment, setSentiment] = useState<SentimentData | null>(null);
+  const [forecast, setForecast] = useState<Forecast[] | null>(null);
+  const [execSummary, setExecSummary] = useState<ExecutiveSummary | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      // 1. Load basic company metadata
+      const profile = await companyApi.getCompanyBySlug(slug);
+      setCompany(profile);
+
+      // 2. If ingested, fetch the detailed tabs datasets
+      if (profile.status === "Ingested") {
+        const [
+          dataOverview,
+          dataProducts,
+          dataFinancials,
+          dataCompetitors,
+          dataNews,
+          dataSentiment,
+          dataForecast,
+          dataSummary
+        ] = await Promise.all([
+          companyApi.getCompanyOverview(slug).catch(() => null),
+          companyApi.getCompanyProducts(slug).catch(() => null),
+          companyApi.getCompanyFinancials(slug).catch(() => null),
+          companyApi.getCompanyCompetitors(slug).catch(() => null),
+          companyApi.getCompanyNews(slug).catch(() => null),
+          companyApi.getCompanySentiment(slug).catch(() => null),
+          companyApi.getCompanyForecast(slug).catch(() => null),
+          reportApi.getExecutiveSummary(slug).catch(() => null)
+        ]);
+
+        setOverview(dataOverview);
+        setProducts(dataProducts);
+        setFinancials(dataFinancials);
+        setCompetitors(dataCompetitors);
+        setNews(dataNews);
+        setSentiment(dataSentiment);
+        setForecast(dataForecast);
+        setExecSummary(dataSummary);
+      } else {
+        // Reset states if company is in Standby mode
+        setOverview(null);
+        setProducts(null);
+        setFinancials(null);
+        setCompetitors(null);
+        setNews(null);
+        setSentiment(null);
+        setForecast(null);
+        setExecSummary(null);
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Failed to load company workspace. Verify network connections.";
+      setError(errMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRunScan = async () => {
+    if (scanState !== "idle") return;
+    setScanState("scanning");
+    setError("");
+    try {
+      await companyApi.scanCompany(slug);
+      setScanState("completed");
+      await loadData();
+      setTimeout(() => {
+        setScanState("idle");
+      }, 3000);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Pipeline scan failed to compile company parameters.";
+      setError(errMsg);
+      setScanState("idle");
+    }
   };
 
   const tabs: TabType[] = [
@@ -98,39 +149,105 @@ export default function CompanyWorkspacePage() {
     "AI Executive Summary",
   ];
 
-  const handleRunScan = () => {
-    if (scanState !== "idle") return;
-    setScanState("scanning");
-    setTimeout(() => {
-      setScanState("completed");
-      setTimeout(() => {
-        setScanState("idle");
-      }, 3000);
-    }, 4000);
-  };
-
   const renderTabContent = () => {
+    const defaultCompanyName = company?.name || rawSlug.toUpperCase() + " Corp.";
+    
     switch (activeTab) {
       case "Overview":
-        return <OverviewTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <OverviewTab
+            companyName={defaultCompanyName}
+            data={overview || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "Products":
-        return <ProductsTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <ProductsTab
+            companyName={defaultCompanyName}
+            data={products || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "Financials":
-        return <FinancialsTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <FinancialsTab
+            companyName={defaultCompanyName}
+            data={financials || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "Competitors":
-        return <CompetitorsTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <CompetitorsTab
+            companyName={defaultCompanyName}
+            data={competitors || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "News":
-        return <NewsTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <NewsTab
+            companyName={defaultCompanyName}
+            data={news || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "Sentiment":
-        return <SentimentTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <SentimentTab
+            companyName={defaultCompanyName}
+            data={sentiment || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "Forecast":
-        return <ForecastTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <ForecastTab
+            companyName={defaultCompanyName}
+            data={forecast || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       case "AI Executive Summary":
-        return <ExecutiveSummaryTab companyName={company.name} onRunScan={handleRunScan} />;
+        return (
+          <ExecutiveSummaryTab
+            companyName={defaultCompanyName}
+            data={execSummary || undefined}
+            isLoading={isLoading}
+            error={error}
+            onRunScan={handleRunScan}
+          />
+        );
       default:
         return null;
     }
   };
+
+  const defaultCompany = {
+    name: rawSlug.toUpperCase() + " Corp.",
+    industry: "Technology & Industry Services",
+    headquarters: "New York, NY",
+    ceo: "Executive Officer",
+    founded: 2012,
+    marketCap: "$120.0 Billion",
+  };
+
+  const displayedCompany = company || defaultCompany;
 
   return (
     <motion.div
@@ -152,7 +269,7 @@ export default function CompanyWorkspacePage() {
         {scanState === "scanning" && (
           <div className="flex items-center gap-2 text-xs text-brand-accent bg-brand-primary/10 border border-brand-primary/20 px-3 py-1.5 rounded-lg">
             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            Synthesizing {company.name} data pipeline...
+            Synthesizing {displayedCompany.name} data pipeline...
           </div>
         )}
         {scanState === "completed" && (
@@ -165,12 +282,14 @@ export default function CompanyWorkspacePage() {
 
       {/* Company Header Block */}
       <CompanyHeader
-        name={company.name}
-        industry={company.industry}
-        headquarters={company.headquarters}
-        ceo={company.ceo}
-        founded={company.founded}
-        marketCap={company.marketCap}
+        name={displayedCompany.name}
+        industry={displayedCompany.industry}
+        headquarters={displayedCompany.headquarters}
+        ceo={displayedCompany.ceo}
+        founded={displayedCompany.founded}
+        marketCap={displayedCompany.marketCap}
+        scanState={scanState}
+        onScan={handleRunScan}
       />
 
       {/* Tabs Control Row */}

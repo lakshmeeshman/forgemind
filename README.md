@@ -1,36 +1,177 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# 🚀 ForgeMind
 
-First, run the development server:
+### Enterprise Intelligence Platform powered by AI, Machine Learning & Data Science
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Transform any public company into an executive-ready intelligence workspace with AI-powered insights, business intelligence, forecasting, and automated reports.
+
+---
+
+![Status](https://img.shields.io/badge/Status-Active-success)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![FastAPI](https://img.shields.io/badge/FastAPI-Planned-009688)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
+
+---
+
+# 🌍 Vision
+
+ForgeMind is an AI-powered Enterprise Intelligence Platform designed to help executives, analysts, founders, investors, and researchers understand any company through a single intelligent workspace.
+
+Instead of searching across multiple websites, ForgeMind aggregates, analyzes, forecasts, and summarizes company intelligence into one unified platform.
+
+---
+
+# ✨ Features
+
+## Current
+
+- ✅ Premium Landing Page
+- ✅ SaaS Dashboard
+- ✅ Company Intelligence Workspace
+- ✅ Responsive Design
+- ✅ Modern UI
+- ✅ Dark Mode
+- ✅ Glassmorphism Design
+
+---
+
+## Upcoming
+
+- 🔍 Company Search
+- 🤖 AI Executive Summaries
+- 📊 Revenue Forecasting
+- 📈 Market Sentiment Analysis
+- 🏢 Competitor Intelligence
+- 📄 Executive PDF Reports
+- ⭐ Saved Companies
+- 🔐 Authentication
+- 📡 Live Data Integration
+
+---
+
+# 🏗️ Architecture
+
+```
+                User
+                  │
+        Next.js Frontend
+                  │
+          FastAPI Backend
+                  │
+    ┌────────┬────────┬────────┐
+    │        │        │        │
+Company     AI       ML      Reports
+Service   Service  Service   Service
+    │
+Supabase Database
+    │
+External APIs
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# 🛠 Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Frontend
 
-## Learn More
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Framer Motion
 
-To learn more about Next.js, take a look at the following resources:
+## Backend (Upcoming)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- FastAPI
+- Python
+- SQLAlchemy
+- Supabase
+- Redis
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## AI
 
-## Deploy on Vercel
+- Claude
+- OpenAI (Optional)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Machine Learning
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Pandas
+- NumPy
+- Scikit-learn
+- Prophet
+
+---
+
+# 📂 Project Structure
+
+```
+src/
+ ├── app/
+ ├── components/
+ ├── lib/
+
+docs/
+
+backend/ (Upcoming)
+
+README.md
+```
+
+---
+
+# 🚀 Roadmap
+
+- ✅ Landing Page
+- ✅ Dashboard
+- ✅ Company Workspace
+- 🚧 Backend APIs
+- 🚧 AI Integration
+- 🚧 Machine Learning
+- 🚧 Deployment
+- 🚧 Production Release
+
+---
+
+# 📸 Screenshots
+
+Coming Soon
+
+---
+
+# 🚀 Installation
+
+```bash
+git clone https://github.com/lakshmeeshman/forgemind.git
+
+cd forgemind
+
+npm install
+
+npm run dev
+```
+
+---
+
+# 🤝 Contributing
+
+Contributions, ideas, and feature suggestions are welcome.
+
+---
+
+# 📜 License
+
+MIT License
+
+---
+
+<div align="center">
+
+Built with ❤️ by Lakshmeesh Mankame
+
+</div>
