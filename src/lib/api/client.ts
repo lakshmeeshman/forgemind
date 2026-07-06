@@ -1,10 +1,15 @@
+// client.ts
 /**
  * ForgeMind Centralized API Client Wrapper
  * Ready for FastAPI integration.
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API !== "false"; // Defaults to true during frontend prototyping
+
+// Exported so service-layer modules (e.g. company.ts) can branch on mock
+// vs. live mode themselves when a single apiClient() call isn't enough —
+// e.g. to decide which identifier (slug vs. ticker) to query with.
+export const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API !== "false"; // Defaults to true during frontend prototyping
 
 // Helper to simulate network latency
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,7 +40,7 @@ export async function apiClient<T>(
 
   // Actual backend request ready for FastAPI integration
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const headers = new Headers({
     "Content-Type": "application/json",
     ...(options?.headers || {}),
@@ -47,10 +52,21 @@ export async function apiClient<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // Network-level failures (DNS, connection refused, CORS rejection, etc.)
+  // throw a raw, cryptic TypeError from fetch() itself. Normalize that
+  // into the same friendly Error shape callers already expect from the
+  // HTTP-error branch below.
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      "Network Error: Unable to reach the ForgeMind API. Please check your connection and try again."
+    );
+  }
 
   if (!response.ok) {
     let errorMessage = `API Error [${response.status}]`;
@@ -61,7 +77,7 @@ export async function apiClient<T>(
       try {
         const errorText = await response.text();
         if (errorText) errorMessage = errorText;
-      } catch {}
+      } catch { }
     }
     throw new Error(errorMessage);
   }

@@ -24,7 +24,7 @@ Where this fits in the architecture:
 
 from fastapi import APIRouter
 
-from api.v1 import company, health
+from api.v1 import company, health, reports
 
 # Single combined router for API version 1.
 api_router = APIRouter()
@@ -32,6 +32,7 @@ api_router = APIRouter()
 # Register individual endpoint-group routers below.
 api_router.include_router(health.router)
 api_router.include_router(company.router)
+api_router.include_router(reports.router)
 
 # Future endpoint groups (NOT implemented yet, per project scope):
 # api_router.include_router(auth.router)
