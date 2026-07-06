@@ -13,15 +13,20 @@ Why this file exists:
 Design notes:
     - The route handler ONLY parses the request, delegates to
       `services/company_service.py`, and shapes the HTTP response. It
-      contains no business/lookup logic itself.
+      contains no business/lookup/provider logic itself.
     - Unknown tickers are translated into a 404 response here, since
       HTTP status codes are an HTTP-layer concern and should not leak
       into the service layer.
+    - Upstream provider failures (e.g. Yahoo Finance unreachable) are
+      translated into a 503 response, distinct from 404, so API
+      consumers can tell "this company doesn't exist" apart from
+      "try again later".
 
-Status (Sprint 6 - Phase 1):
-    Returns MOCK data only (see services/company_service.py). No
-    external market-data integration (e.g. Yahoo Finance) exists yet —
-    that is out of scope for this phase.
+Status (Sprint 7 - Live Market Data Integration):
+    Backed by LIVE data fetched from Yahoo Finance (see
+    services/company_service.py). The endpoint contract (path,
+    response model, and 404-for-unknown-ticker behavior) is unchanged
+    from Sprint 6.
 
 Where this fits in the architecture:
     Registered in api/v1/router.py, which aggregates all v1 routers and
@@ -32,7 +37,11 @@ from fastapi import APIRouter, HTTPException, status
 
 from core.logging_config import get_logger
 from schemas.company import CompanyResponse
-from services.company_service import CompanyNotFoundError, get_company_by_ticker
+from services.company_service import (
+    CompanyDataUnavailableError,
+    CompanyNotFoundError,
+    get_company_by_ticker,
+)
 
 logger = get_logger(__name__)
 
@@ -43,12 +52,12 @@ router = APIRouter(tags=["Company"])
     "/company/{ticker}",
     response_model=CompanyResponse,
     summary="Get company data by ticker",
-    description="Returns company profile and market data for the given "
-    "stock ticker symbol. Currently backed by mock data only.",
+    description="Returns live company profile and market data for the "
+    "given stock ticker symbol, sourced from Yahoo Finance.",
 )
 async def get_company(ticker: str) -> CompanyResponse:
     """
-    Retrieve company data for a given ticker symbol.
+    Retrieve live company data for a given ticker symbol.
 
     Args:
         ticker: Stock ticker symbol, case-insensitive (e.g. "AAPL").
@@ -57,7 +66,9 @@ async def get_company(ticker: str) -> CompanyResponse:
         CompanyResponse: Company profile and market data.
 
     Raises:
-        HTTPException: 404 if the ticker is not found in the dataset.
+        HTTPException: 404 if the ticker does not correspond to a real
+            company. 503 if the upstream data provider is temporarily
+            unavailable.
     """
     logger.debug(f"Company data requested for ticker: {ticker}")
 
@@ -67,4 +78,9 @@ async def get_company(ticker: str) -> CompanyResponse:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Company not found for ticker '{ticker.upper()}'",
+        ) from exc
+    except CompanyDataUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Company data provider is temporarily unavailable. Please try again later.",
         ) from exc

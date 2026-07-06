@@ -1,10 +1,10 @@
 # ForgeMind Backend — Python dependencies
 #
 # This file intentionally contains ONLY what is needed for the
-# scaffolding stage: the web framework, ASGI server, settings
-# management, and testing tools. Database drivers, auth libraries,
-# and AI/ML packages will be added in later stages as those features
-# are implemented.
+# implemented features: the web framework, ASGI server, settings
+# management, live market data, and testing tools. Database drivers,
+# auth libraries, and AI/ML packages will be added in later stages as
+# those features are implemented.
 
 # --- Web framework & server -------------------------------------------
 fastapi==0.115.0
@@ -13,6 +13,11 @@ uvicorn[standard]==0.30.6
 # --- Configuration -------------------------------------------------------
 pydantic==2.9.2
 pydantic-settings==2.5.2
+
+# --- Market data ---------------------------------------------------------
+# Used by services/company_service.py to fetch live company data from
+# Yahoo Finance (Sprint 7 - Live Market Data Integration).
+yfinance==1.5.1
 
 # --- Testing ---------------------------------------------------------------
 pytest==8.3.3
