@@ -11,9 +11,9 @@ Why this file exists:
 
 Design notes:
     - This is the ONLY place new v1 sub-routers need to be registered.
-      Adding a new endpoint group later (e.g. `companies.py`) means:
-        1. Create api/v1/companies.py with its own APIRouter
-        2. Import it here and add `api_router.include_router(companies.router)`
+      Adding a new endpoint group later (e.g. `auth.py`) means:
+        1. Create api/v1/auth.py with its own APIRouter
+        2. Import it here and add `api_router.include_router(auth.router)`
       main.py itself never needs to change.
 
 Where this fits in the architecture:
@@ -24,15 +24,15 @@ Where this fits in the architecture:
 
 from fastapi import APIRouter
 
-from api.v1 import health
+from api.v1 import company, health
 
 # Single combined router for API version 1.
 api_router = APIRouter()
 
 # Register individual endpoint-group routers below.
 api_router.include_router(health.router)
+api_router.include_router(company.router)
 
 # Future endpoint groups (NOT implemented yet, per project scope):
-# api_router.include_router(companies.router)
 # api_router.include_router(auth.router)
 # api_router.include_router(ai.router)
