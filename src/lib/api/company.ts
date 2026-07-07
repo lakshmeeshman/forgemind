@@ -1,4 +1,3 @@
-// company.ts
 import { apiClient, USE_MOCK_API } from "./client";
 import {
   Company,
@@ -52,32 +51,32 @@ const sessionSentiments: Record<string, SentimentData> = { ...MOCK_SENTIMENTS };
 const sessionForecasts: Record<string, Forecast[]> = { ...MOCK_FORECASTS };
 
 // ----------------------------------------------------------------------
-// Live backend integration (Sprint 9 — Company API)
+// Live backend integration (Sprint 9 — Company Overview)
 // ----------------------------------------------------------------------
 
 /**
- * Shape returned by the live FastAPI endpoint: GET /api/v1/company/{ticker}
- * Mirrors backend/schemas/company.py -> CompanyResponse.
+ * Shape returned by the live FastAPI endpoint:
+ * GET /api/v1/company/{ticker}/overview
+ * Mirrors backend/schemas/company.py -> CompanyOverviewResponse.
  *
  * Kept local to this file (not exported, not added to types.ts) since
  * it's an internal wire format — it gets adapted into our existing
- * `Company` type below via mapCompanyResponseToCompany(). Consumers of
- * companyApi should never see this shape directly.
+ * `CompanyOverview` type below via mapOverviewResponseToCompanyOverview().
+ * Consumers of companyApi should never see this shape directly.
  */
-interface CompanyProfileResponse {
+interface CompanyOverviewApiResponse {
   ticker: string;
-  name: string;
-  sector: string;
-  industry: string;
-  market_cap: number;
-  current_price: number;
-  currency: string;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
 }
 
 /**
  * Maps our internal, URL-friendly company slugs (used by the Company
  * page routes, e.g. /company/apple) to the real stock ticker symbols
- * the live FastAPI backend expects (GET /company/{ticker}).
+ * the live FastAPI backend expects (GET /company/{ticker}/...).
  *
  * This is the ONLY place that mapping lives. Add new companies here as
  * they're wired up to live data — this list does not need to (and
@@ -108,51 +107,27 @@ function resolveTicker(slug: string, fallback: Company): string {
   return SLUG_TO_TICKER[slug] ?? fallback.ticker;
 }
 
-// Formats a raw market cap number into the same human-readable style
-// already used by our mock data (e.g. "$120.0 Billion"), so switching
-// between mock and live data is visually seamless in the UI.
-function formatMarketCap(value: number, currency: string): string {
-  const prefix = currency === "USD" ? "$" : `${currency} `;
-
-  if (value >= 1_000_000_000_000) {
-    return `${prefix}${(value / 1_000_000_000_000).toFixed(2)} Trillion`;
-  }
-  if (value >= 1_000_000_000) {
-    return `${prefix}${(value / 1_000_000_000).toFixed(1)} Billion`;
-  }
-  if (value >= 1_000_000) {
-    return `${prefix}${(value / 1_000_000).toFixed(1)} Million`;
-  }
-  return `${prefix}${value.toLocaleString()}`;
-}
-
 /**
- * Adapts a live backend CompanyProfileResponse into our existing
- * frontend `Company` shape.
+ * Adapts a live backend CompanyOverviewApiResponse into our existing
+ * frontend `CompanyOverview` shape.
  *
- * Fields the backend doesn't expose yet (id, slug, headquarters, ceo,
- * founded) are preserved from the local session/dynamic fallback, so
- * the rest of the dashboard — which expects a fully-populated Company —
- * keeps working unchanged while we incrementally wire up real data.
- *
- * NOTE: response.sector and response.current_price/currency carry
- * additional live market data that isn't part of the `Company` type
- * yet. Once the dashboard needs to surface them, extend `Company` in
- * types.ts and map them here rather than reaching for `any`.
+ * The backend keys its overview by `ticker`; our frontend type keys it
+ * by `companyId` (matching how `Company` and other intelligence types
+ * are already linked in this codebase). `companyId` is carried over
+ * from the already-resolved `Company` record rather than the response,
+ * since the backend has no concept of our internal company id.
  */
-function mapCompanyResponseToCompany(
-  response: CompanyProfileResponse,
-  slug: string,
-  fallback: Company
-): Company {
+function mapOverviewResponseToCompanyOverview(
+  response: CompanyOverviewApiResponse,
+  companyId: string
+): CompanyOverview {
   return {
-    ...fallback,
-    slug,
-    ticker: response.ticker,
-    name: response.name,
-    industry: response.industry,
-    marketCap: formatMarketCap(response.market_cap, response.currency),
-    status: "Ingested"
+    companyId,
+    summary: response.summary,
+    strengths: response.strengths,
+    weaknesses: response.weaknesses,
+    opportunities: response.opportunities,
+    threats: response.threats
   };
 }
 
@@ -189,7 +164,7 @@ export const companyApi = {
       });
     }
 
-    // Live mode (Sprint 10): query the real FastAPI Company API.
+    // Live mode (Sprint 9): query the real FastAPI Company API.
     // The backend endpoint is ticker-based (GET /company/{ticker}),
     // while the Company page routes on `slug` — so we resolve the slug
     // to its real ticker via SLUG_TO_TICKER before calling out. Unknown
@@ -199,12 +174,33 @@ export const companyApi = {
     // back to fabricated data.
     const ticker = resolveTicker(clean, fallback);
 
-    const live = await apiClient<CompanyProfileResponse>(
-      `/company/${ticker}`,
-      { useMock: false }
-    );
+    const live = await apiClient<{
+      ticker: string;
+      name: string;
+      sector: string;
+      industry: string;
+      market_cap: number;
+      current_price: number;
+      currency: string;
+    }>(`/company/${ticker}`, { useMock: false });
 
-    const company = mapCompanyResponseToCompany(live, clean, fallback);
+    const formatMarketCap = (value: number, currency: string): string => {
+      const prefix = currency === "USD" ? "$" : `${currency} `;
+      if (value >= 1_000_000_000_000) return `${prefix}${(value / 1_000_000_000_000).toFixed(2)} Trillion`;
+      if (value >= 1_000_000_000) return `${prefix}${(value / 1_000_000_000).toFixed(1)} Billion`;
+      if (value >= 1_000_000) return `${prefix}${(value / 1_000_000).toFixed(1)} Million`;
+      return `${prefix}${value.toLocaleString()}`;
+    };
+
+    const company: Company = {
+      ...fallback,
+      slug: clean,
+      ticker: live.ticker,
+      name: live.name,
+      industry: live.industry,
+      marketCap: formatMarketCap(live.market_cap, live.currency),
+      status: "Ingested"
+    };
 
     // Cache the freshly-fetched company in session state, mirroring how
     // scanCompany() persists ingested companies below.
@@ -216,11 +212,39 @@ export const companyApi = {
   // Fetch company SWOT overview
   async getCompanyOverview(slug: string): Promise<CompanyOverview> {
     const clean = slug.toLowerCase();
-    const data = sessionOverviews[clean];
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
 
-    return apiClient<CompanyOverview>(`/company/${clean}/overview`, {
-      mockData: data // Undefined if not ingested yet
-    });
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      const data = sessionOverviews[clean];
+      return apiClient<CompanyOverview>(`/company/${clean}/overview`, {
+        mockData: data // Undefined if not ingested yet
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 1): query the real FastAPI endpoint,
+    // GET /company/{ticker}/overview. As with getCompanyBySlug, the
+    // slug is resolved to its real ticker via SLUG_TO_TICKER first.
+    // Per the backend's Sprint 9 contract, a valid ticker always
+    // returns a well-formed overview (possibly with empty
+    // strengths/weaknesses/opportunities/threats arrays if the backend
+    // has no curated content yet) — only a genuinely invalid ticker
+    // throws (404 "Company not found..." from the backend, or a
+    // network/server error).
+    const ticker = resolveTicker(clean, fallback);
+
+    const live = await apiClient<CompanyOverviewApiResponse>(
+      `/company/${ticker}/overview`,
+      { useMock: false }
+    );
+
+    const overview = mapOverviewResponseToCompanyOverview(live, fallback.id);
+
+    // Cache the freshly-fetched overview in session state, mirroring
+    // how getCompanyBySlug() and scanCompany() persist fetched data.
+    sessionOverviews[clean] = overview;
+
+    return overview;
   },
 
   // Fetch company product taxonomy
@@ -228,8 +252,21 @@ export const companyApi = {
     const clean = slug.toLowerCase();
     const data = sessionProducts[clean];
 
-    return apiClient<Product[]>(`/company/${clean}/products`, {
-      mockData: data
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      return apiClient<Product[]>(`/company/${clean}/products`, {
+        mockData: data
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 2): resolve slug -> ticker exactly
+    // like getCompanyOverview() does, since the backend endpoint is
+    // ticker-based (GET /company/{ticker}/products), not slug-based.
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
+    const ticker = resolveTicker(clean, fallback);
+
+    return apiClient<Product[]>(`/company/${ticker}/products`, {
+      useMock: false
     });
   },
 
@@ -238,8 +275,21 @@ export const companyApi = {
     const clean = slug.toLowerCase();
     const data = sessionFinancials[clean];
 
-    return apiClient<FinancialStatement>(`/company/${clean}/financials`, {
-      mockData: data
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      return apiClient<FinancialStatement>(`/company/${clean}/financials`, {
+        mockData: data
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 2): resolve slug -> ticker exactly
+    // like getCompanyOverview() does, since the backend endpoint is
+    // ticker-based (GET /company/{ticker}/financials), not slug-based.
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
+    const ticker = resolveTicker(clean, fallback);
+
+    return apiClient<FinancialStatement>(`/company/${ticker}/financials`, {
+      useMock: false
     });
   },
 
@@ -248,8 +298,21 @@ export const companyApi = {
     const clean = slug.toLowerCase();
     const data = sessionCompetitors[clean];
 
-    return apiClient<Competitor[]>(`/company/${clean}/competitors`, {
-      mockData: data
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      return apiClient<Competitor[]>(`/company/${clean}/competitors`, {
+        mockData: data
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 2): resolve slug -> ticker exactly
+    // like getCompanyOverview() does, since the backend endpoint is
+    // ticker-based (GET /company/{ticker}/competitors), not slug-based.
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
+    const ticker = resolveTicker(clean, fallback);
+
+    return apiClient<Competitor[]>(`/company/${ticker}/competitors`, {
+      useMock: false
     });
   },
 
@@ -258,8 +321,21 @@ export const companyApi = {
     const clean = slug.toLowerCase();
     const data = sessionNews[clean];
 
-    return apiClient<NewsArticle[]>(`/company/${clean}/news`, {
-      mockData: data
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      return apiClient<NewsArticle[]>(`/company/${clean}/news`, {
+        mockData: data
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 2): resolve slug -> ticker exactly
+    // like getCompanyOverview() does, since the backend endpoint is
+    // ticker-based (GET /company/{ticker}/news), not slug-based.
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
+    const ticker = resolveTicker(clean, fallback);
+
+    return apiClient<NewsArticle[]>(`/company/${ticker}/news`, {
+      useMock: false
     });
   },
 
@@ -268,8 +344,21 @@ export const companyApi = {
     const clean = slug.toLowerCase();
     const data = sessionSentiments[clean];
 
-    return apiClient<SentimentData>(`/company/${clean}/sentiment`, {
-      mockData: data
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      return apiClient<SentimentData>(`/company/${clean}/sentiment`, {
+        mockData: data
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 2): resolve slug -> ticker exactly
+    // like getCompanyOverview() does, since the backend endpoint is
+    // ticker-based (GET /company/{ticker}/sentiment), not slug-based.
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
+    const ticker = resolveTicker(clean, fallback);
+
+    return apiClient<SentimentData>(`/company/${ticker}/sentiment`, {
+      useMock: false
     });
   },
 
@@ -278,8 +367,21 @@ export const companyApi = {
     const clean = slug.toLowerCase();
     const data = sessionForecasts[clean];
 
-    return apiClient<Forecast[]>(`/company/${clean}/forecast`, {
-      mockData: data
+    // Mock mode: unchanged prototyping behavior from Sprint 6.
+    if (USE_MOCK_API) {
+      return apiClient<Forecast[]>(`/company/${clean}/forecast`, {
+        mockData: data
+      });
+    }
+
+    // Live mode (Sprint 9 - Phase 2): resolve slug -> ticker exactly
+    // like getCompanyOverview() does, since the backend endpoint is
+    // ticker-based (GET /company/{ticker}/forecast), not slug-based.
+    const fallback = sessionCompanies[clean] || generateDynamicCompany(clean);
+    const ticker = resolveTicker(clean, fallback);
+
+    return apiClient<Forecast[]>(`/company/${ticker}/forecast`, {
+      useMock: false
     });
   },
 
