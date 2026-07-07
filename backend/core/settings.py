@@ -103,6 +103,15 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # ------------------------------------------------------------------
+    # Pipeline scan configuration (Sprint 10 - Pipeline Scan System)
+    # ------------------------------------------------------------------
+    # Simulated delay, in seconds, between each pipeline scan stage
+    # (Queued -> Fetching -> Processing -> Completed). Configurable so
+    # it can be tuned down for fast test runs and tuned up for a more
+    # realistic demo feel, without touching service code.
+    SCAN_STAGE_DELAY_SECONDS: float = 0.3
+
+    # ------------------------------------------------------------------
     # Pydantic Settings configuration
     # ------------------------------------------------------------------
     model_config = SettingsConfigDict(
